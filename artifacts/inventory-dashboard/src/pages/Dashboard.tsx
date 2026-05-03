@@ -45,6 +45,7 @@ import {
 import { MOCK_PRODUCTS, MOCK_ORDERS } from "@/data/mockData";
 import { motion } from "framer-motion";
 import { Link } from "wouter";
+import heroBg from "@/assets/hero-bg.png";
 
 const TREND_DATA = [
   { name: "Mon", value: 4000 },
@@ -180,64 +181,72 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Welcome banner + filters */}
+      {/* Hero Banner with Background */}
       <motion.div
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
-        className="flex flex-col gap-4"
+        className="relative overflow-hidden rounded-xl border border-border/50"
       >
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{greeting}, Alex</h1>
-            <p className="text-muted-foreground mt-1 text-sm">{dateStr} — Here's what's happening in your warehouse.</p>
+        <div 
+          className="absolute inset-0 opacity-35 bg-cover bg-center"
+          style={{ backgroundImage: `url(${heroBg})` }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/80 to-background/60 dark:from-background/98 dark:via-background/85 dark:to-background/70" />
+        
+        <div className="relative z-10 p-8 lg:p-10 flex flex-col gap-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h1 className="text-3xl sm:text-4xl font-bold tracking-tight bg-gradient-to-r from-foreground via-foreground to-foreground/70 bg-clip-text text-transparent">{greeting}, Alex</h1>
+              <p className="text-muted-foreground mt-2 text-base">{dateStr} — Here's what's happening in your warehouse.</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {QUICK_ACTIONS.map(action => (
+                <Link key={action.label} href={action.href}>
+                  <Button variant={action.variant} size="sm" className="gap-1.5 text-xs shadow-sm hover:shadow-md transition-shadow" data-testid={`button-quick-${action.label.toLowerCase().replace(/\s+/g, "-")}`}>
+                    <action.icon className="h-3.5 w-3.5" />
+                    {action.label}
+                  </Button>
+                </Link>
+              ))}
+            </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {QUICK_ACTIONS.map(action => (
-              <Link key={action.label} href={action.href}>
-                <Button variant={action.variant} size="sm" className="gap-1.5 text-xs" data-testid={`button-quick-${action.label.toLowerCase().replace(/\s+/g, "-")}`}>
-                  <action.icon className="h-3.5 w-3.5" />
-                  {action.label}
-                </Button>
-              </Link>
-            ))}
-          </div>
-        </div>
 
-        {/* Filters + Export */}
-        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-          <div className="flex gap-2 flex-wrap">
-            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="w-[180px] h-9" data-testid="select-dashboard-category">
-                <Filter className="h-4 w-4 mr-2" /><SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Categories</SelectItem>
-                <SelectItem value="Electronics">Electronics</SelectItem>
-                <SelectItem value="Furniture">Furniture</SelectItem>
-                <SelectItem value="Accessories">Accessories</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[150px] h-9" data-testid="select-dashboard-status">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="healthy">Healthy</SelectItem>
-                <SelectItem value="low">Low</SelectItem>
-                <SelectItem value="critical">Critical</SelectItem>
-              </SelectContent>
-            </Select>
+          {/* Filters + Export */}
+          <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+            <div className="flex gap-2 flex-wrap">
+              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <SelectTrigger className="w-[180px] h-9 shadow-sm" data-testid="select-dashboard-category">
+                  <Filter className="h-4 w-4 mr-2" /><SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  <SelectItem value="Electronics">Electronics</SelectItem>
+                  <SelectItem value="Furniture">Furniture</SelectItem>
+                  <SelectItem value="Accessories">Accessories</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[150px] h-9 shadow-sm" data-testid="select-dashboard-status">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="healthy">Healthy</SelectItem>
+                  <SelectItem value="low">Low</SelectItem>
+                  <SelectItem value="critical">Critical</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button variant="outline" size="sm" className="gap-1.5 h-9 text-xs shadow-sm hover:shadow-md transition-shadow" onClick={exportDashboardData} data-testid="button-export-dashboard">
+              <Download className="h-3.5 w-3.5" /> Export View
+            </Button>
           </div>
-          <Button variant="outline" size="sm" className="gap-1.5 h-9 text-xs" onClick={exportDashboardData} data-testid="button-export-dashboard">
-            <Download className="h-3.5 w-3.5" /> Export View
-          </Button>
         </div>
       </motion.div>
 
       {/* KPI Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 px-0">
         {[
           {
             title: "Total SKUs",
@@ -279,7 +288,7 @@ export default function Dashboard() {
         ].map((card, i) => (
           <motion.div key={card.title} custom={i} variants={cardVariants} initial="hidden" animate="visible">
             <Link href={card.href}>
-              <Card className={`cursor-pointer hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 ${card.alert ? "border-destructive/30 bg-destructive/5" : ""}`}>
+              <Card className={`cursor-pointer hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border ${card.alert ? "border-destructive/30 bg-gradient-to-br from-destructive/5 to-destructive/2" : "border-border/50 bg-gradient-to-br from-card to-card/95"} backdrop-blur-sm`}>
                 <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
                   <CardTitle className={`text-sm font-medium ${card.alert ? "text-destructive" : "text-muted-foreground"}`}>{card.title}</CardTitle>
                   <div className={`p-1.5 rounded-md ${card.iconBg}`}>
@@ -364,15 +373,15 @@ export default function Dashboard() {
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Top products by value */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.38, duration: 0.4 }}>
-          <Card className="h-full">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-base">Top Products by Value</CardTitle>
+          <Card className="h-full border border-border/50 bg-gradient-to-br from-card via-card to-card/90 backdrop-blur-sm shadow-lg hover:shadow-xl transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between border-b border-border/50">
+              <CardTitle className="text-base font-semibold bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">Top Products by Value</CardTitle>
               <Link href="/products">
-                <Button variant="ghost" size="sm" className="text-xs gap-1">View all <ArrowRight className="h-3 w-3" /></Button>
+                <Button variant="ghost" size="sm" className="text-xs gap-1 hover:bg-muted/50">View all <ArrowRight className="h-3 w-3" /></Button>
               </Link>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="divide-y divide-border/60">
+              <div className="divide-y divide-border/30">
                 {topProducts.map((p, i) => (
                   <motion.div
                     key={p.id}
@@ -400,10 +409,10 @@ export default function Dashboard() {
 
         {/* Activity feed */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4, duration: 0.4 }}>
-          <Card className="h-full">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-base">Recent Activity</CardTitle>
-              <Button variant="ghost" size="sm" className="text-xs text-muted-foreground gap-1">
+          <Card className="h-full border border-border/50 bg-gradient-to-br from-card via-card to-card/90 backdrop-blur-sm shadow-lg hover:shadow-xl transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between border-b border-border/50">
+              <CardTitle className="text-base font-semibold bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">Recent Activity</CardTitle>
+              <Button variant="ghost" size="sm" className="text-xs text-muted-foreground gap-1 hover:bg-muted/50">
                 <RefreshCw className="h-3 w-3" /> Refresh
               </Button>
             </CardHeader>
@@ -436,11 +445,11 @@ export default function Dashboard() {
 
         {/* Needs attention */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45, duration: 0.4 }}>
-          <Card className="h-full">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-base">Needs Attention</CardTitle>
+          <Card className="h-full border border-border/50 bg-gradient-to-br from-card via-card to-card/90 backdrop-blur-sm shadow-lg hover:shadow-xl transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between border-b border-border/50">
+              <CardTitle className="text-base font-semibold bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">Needs Attention</CardTitle>
               <Link href="/stock">
-                <Button variant="ghost" size="sm" className="text-xs gap-1">View all <ArrowRight className="h-3 w-3" /></Button>
+                <Button variant="ghost" size="sm" className="text-xs gap-1 hover:bg-muted/50">View all <ArrowRight className="h-3 w-3" /></Button>
               </Link>
             </CardHeader>
             <CardContent>

@@ -1,0 +1,8 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "alo4F5sxZLp6JYgCApBwU"
+uri = "file://artifacts/inventory-dashboard/src/assets/hero-bg.png"
+type = "image"
+title = "Hero background for dashboard"
