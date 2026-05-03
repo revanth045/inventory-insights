@@ -20,11 +20,11 @@ import {
   Pie,
   Cell,
   Legend,
-  LineChart,
-  Line
 } from "recharts";
 import { motion } from "framer-motion";
-import { TrendingUp, TrendingDown, Package, ShoppingCart } from "lucide-react";
+import { TrendingUp, TrendingDown, Package, ShoppingCart, AlertTriangle, XCircle, CheckCircle2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { MOCK_PRODUCTS } from "@/data/mockData";
 
 const DATE_RANGES = ["Week", "Month", "Quarter", "Year"];
 
@@ -54,10 +54,10 @@ const CATEGORY_DATA = [
 ];
 
 const SUPPLIER_DATA = [
-  { name: "AccessoryHub", rating: 4.9, orders: 4, onTime: 98 },
-  { name: "TechSource", rating: 4.8, orders: 3, onTime: 95 },
-  { name: "ElectroDepot", rating: 4.5, orders: 0, onTime: 91 },
-  { name: "FurniPro", rating: 4.2, orders: 1, onTime: 78 },
+  { name: "AccessoryHub", onTime: 98 },
+  { name: "TechSource", onTime: 95 },
+  { name: "ElectroDepot", onTime: 91 },
+  { name: "FurniPro", onTime: 78 },
 ];
 
 const COLORS = [
@@ -69,7 +69,7 @@ const COLORS = [
 
 const METRICS = [
   { label: "Avg Turnover Rate", value: "3.5x", change: "+0.5x", up: true, icon: TrendingUp },
-  { label: "Total Stock Value", value: "$1.2M", change: "+$300k", up: true, icon: Package },
+  { label: "Total Stock Value", value: "$64k", change: "+$2.6k", up: true, icon: Package },
   { label: "Orders This Month", value: "24", change: "+6", up: true, icon: ShoppingCart },
   { label: "Stockout Events", value: "2", change: "-1", up: false, icon: TrendingDown },
 ];
@@ -81,8 +81,31 @@ const tooltipStyle = {
   fontSize: 12,
 };
 
+// Build stockout forecast from mockData
+function buildForecast() {
+  const today = new Date();
+  return MOCK_PRODUCTS
+    .filter(p => p.dailyUsage > 0)
+    .map(p => {
+      const daysLeft = Math.floor(p.quantity / p.dailyUsage);
+      const stockoutDate = new Date(today);
+      stockoutDate.setDate(today.getDate() + daysLeft);
+      const urgency = daysLeft === 0 ? "out" : daysLeft <= 5 ? "critical" : daysLeft <= 14 ? "warning" : "ok";
+      return { ...p, daysLeft, stockoutDate, urgency };
+    })
+    .sort((a, b) => a.daysLeft - b.daysLeft);
+}
+
+function UrgencyBadge({ urgency, days }: { urgency: string; days: number }) {
+  if (urgency === "out") return <Badge variant="destructive" className="gap-1 text-[11px]"><XCircle className="h-2.5 w-2.5" /> Out of Stock</Badge>;
+  if (urgency === "critical") return <Badge variant="destructive" className="gap-1 text-[11px]"><AlertTriangle className="h-2.5 w-2.5" /> {days}d left</Badge>;
+  if (urgency === "warning") return <Badge className="bg-amber-500 text-white gap-1 text-[11px]"><AlertTriangle className="h-2.5 w-2.5" /> {days}d left</Badge>;
+  return <Badge className="bg-teal-500 text-white gap-1 text-[11px]"><CheckCircle2 className="h-2.5 w-2.5" /> {days}d left</Badge>;
+}
+
 export default function Analytics() {
   const [range, setRange] = useState("Month");
+  const forecast = buildForecast();
 
   return (
     <div className="space-y-6">
@@ -113,12 +136,7 @@ export default function Analytics() {
       {/* KPI row */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {METRICS.map((m, i) => (
-          <motion.div
-            key={m.label}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.07 }}
-          >
+          <motion.div key={m.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.07 }}>
             <Card className="hover:shadow-sm transition-shadow">
               <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
                 <CardTitle className="text-xs font-medium text-muted-foreground">{m.label}</CardTitle>
@@ -146,17 +164,13 @@ export default function Analytics() {
               <CardTitle className="text-base">Inventory Turnover Rate</CardTitle>
               <CardDescription className="text-xs">How often inventory is sold and replaced per month</CardDescription>
             </CardHeader>
-            <CardContent className="h-[250px]">
+            <CardContent className="h-[230px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={TURNOVER_DATA} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
                   <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} />
                   <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} />
-                  <Tooltip
-                    cursor={{ fill: "hsl(var(--muted))", opacity: 0.5 }}
-                    contentStyle={tooltipStyle}
-                    formatter={(v: number) => [`${v}x`, "Turnover"]}
-                  />
+                  <Tooltip cursor={{ fill: "hsl(var(--muted))", opacity: 0.5 }} contentStyle={tooltipStyle} formatter={(v: number) => [`${v}x`, "Turnover"]} />
                   <Bar dataKey="rate" fill="hsl(var(--accent))" radius={[5, 5, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
@@ -171,7 +185,7 @@ export default function Analytics() {
               <CardTitle className="text-base">Total Stock Value</CardTitle>
               <CardDescription className="text-xs">Asset valuation over the last 6 months</CardDescription>
             </CardHeader>
-            <CardContent className="h-[250px]">
+            <CardContent className="h-[230px]">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={VALUE_DATA} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
                   <defs>
@@ -198,24 +212,11 @@ export default function Analytics() {
               <CardTitle className="text-base">Category Distribution</CardTitle>
               <CardDescription className="text-xs">Value breakdown by product category (%)</CardDescription>
             </CardHeader>
-            <CardContent className="h-[250px]">
+            <CardContent className="h-[230px]">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie
-                    data={CATEGORY_DATA}
-                    cx="50%"
-                    cy="45%"
-                    innerRadius={55}
-                    outerRadius={85}
-                    paddingAngle={4}
-                    dataKey="value"
-                    strokeWidth={0}
-                    label={({ name, value }) => `${value}%`}
-                    labelLine={false}
-                  >
-                    {CATEGORY_DATA.map((_, i) => (
-                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                    ))}
+                  <Pie data={CATEGORY_DATA} cx="50%" cy="45%" innerRadius={55} outerRadius={85} paddingAngle={4} dataKey="value" strokeWidth={0}>
+                    {CATEGORY_DATA.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                   </Pie>
                   <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => [`${v}%`, "Share"]} />
                   <Legend verticalAlign="bottom" iconSize={8} iconType="circle" wrapperStyle={{ fontSize: 11 }} />
@@ -232,22 +233,14 @@ export default function Analytics() {
               <CardTitle className="text-base">Supplier On-Time Delivery</CardTitle>
               <CardDescription className="text-xs">Percentage of orders delivered on schedule</CardDescription>
             </CardHeader>
-            <CardContent className="h-[250px]">
+            <CardContent className="h-[230px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={SUPPLIER_DATA} layout="vertical" margin={{ top: 4, right: 16, left: 8, bottom: 4 }}>
+                <BarChart data={SUPPLIER_DATA} layout="vertical" margin={{ top: 4, right: 40, left: 8, bottom: 4 }}>
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="hsl(var(--border))" />
                   <XAxis type="number" domain={[0, 100]} stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} tickFormatter={v => `${v}%`} />
                   <YAxis dataKey="name" type="category" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} width={72} />
-                  <Tooltip
-                    contentStyle={tooltipStyle}
-                    formatter={(v: number) => [`${v}%`, "On-time"]}
-                    cursor={{ fill: "hsl(var(--muted))", opacity: 0.5 }}
-                  />
-                  <Bar
-                    dataKey="onTime"
-                    radius={[0, 5, 5, 0]}
-                    label={{ position: "right", fontSize: 11, fill: "hsl(var(--muted-foreground))", formatter: (v: number) => `${v}%` }}
-                  >
+                  <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => [`${v}%`, "On-time"]} cursor={{ fill: "hsl(var(--muted))", opacity: 0.5 }} />
+                  <Bar dataKey="onTime" radius={[0, 5, 5, 0]} label={{ position: "right", fontSize: 11, fill: "hsl(var(--muted-foreground))", formatter: (v: number) => `${v}%` }}>
                     {SUPPLIER_DATA.map((entry, i) => (
                       <Cell key={i} fill={entry.onTime >= 90 ? "hsl(var(--chart-1))" : entry.onTime >= 80 ? "hsl(var(--chart-2))" : "hsl(var(--chart-3))"} />
                     ))}
@@ -258,6 +251,67 @@ export default function Analytics() {
           </Card>
         </motion.div>
       </div>
+
+      {/* Stockout Forecast Table */}
+      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-amber-500" /> Stockout Forecast
+            </CardTitle>
+            <CardDescription className="text-xs">Predicted dates when items will run out, based on average daily usage</CardDescription>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-muted/30">
+                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">Product</th>
+                    <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground">Current Stock</th>
+                    <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground">Daily Usage</th>
+                    <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground">Days Left</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">Est. Stockout Date</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">Urgency</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {forecast.map((item, i) => (
+                    <motion.tr
+                      key={item.id}
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.45 + i * 0.04 }}
+                      className={`border-b border-border/60 last:border-0 hover:bg-muted/40 transition-colors ${
+                        item.urgency === "out" || item.urgency === "critical" ? "bg-destructive/5" :
+                        item.urgency === "warning" ? "bg-amber-50/50 dark:bg-amber-950/20" : ""
+                      }`}
+                    >
+                      <td className="px-4 py-3 font-medium">
+                        <div>{item.name}</div>
+                        <div className="text-xs text-muted-foreground font-mono">{item.sku}</div>
+                      </td>
+                      <td className="px-4 py-3 text-right font-semibold">{item.quantity}</td>
+                      <td className="px-4 py-3 text-right text-muted-foreground">{item.dailyUsage}/day</td>
+                      <td className={`px-4 py-3 text-right font-bold ${
+                        item.urgency === "out" || item.urgency === "critical" ? "text-destructive" :
+                        item.urgency === "warning" ? "text-amber-500" : "text-teal-600 dark:text-teal-400"
+                      }`}>
+                        {item.daysLeft}
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground text-xs">
+                        {item.daysLeft === 0 ? "Already out" : item.stockoutDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                      </td>
+                      <td className="px-4 py-3">
+                        <UrgencyBadge urgency={item.urgency} days={item.daysLeft} />
+                      </td>
+                    </motion.tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
     </div>
   );
 }

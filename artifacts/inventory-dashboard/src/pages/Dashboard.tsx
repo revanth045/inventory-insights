@@ -16,11 +16,11 @@ import {
   Plus,
   RefreshCw,
   BarChart3,
-  Users
+  Trophy
 } from "lucide-react";
 import {
-  LineChart,
-  Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -30,8 +30,8 @@ import {
   Pie,
   Cell,
   Legend,
-  AreaChart,
-  Area
+  RadialBarChart,
+  RadialBar
 } from "recharts";
 import { MOCK_PRODUCTS, MOCK_ORDERS } from "@/data/mockData";
 import { motion } from "framer-motion";
@@ -58,7 +58,7 @@ const PIE_COLORS = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--cha
 const ACTIVITY = [
   { icon: CheckCircle2, color: "text-teal-500", bg: "bg-teal-50 dark:bg-teal-950/40", label: "ORD-501 delivered", sub: "TechSource Global · 150 items", time: "10 min ago" },
   { icon: AlertTriangle, color: "text-amber-500", bg: "bg-amber-50 dark:bg-amber-950/40", label: "Office Chair low stock", sub: "12 units remaining · Reorder at 20", time: "32 min ago" },
-  { icon: Truck, color: "text-blue-500", bg: "bg-blue-50 dark:bg-blue-950/40", label: "ORD-508 dispatched", sub: "TechSource Global · ETA Nov 3", time: "1 hr ago" },
+  { icon: Truck, color: "text-blue-500", bg: "bg-blue-50 dark:bg-blue-950/40", label: "ORD-508 dispatched", sub: "TechSource Global · ETA May 5", time: "1 hr ago" },
   { icon: XCircle, color: "text-destructive", bg: "bg-destructive/5", label: "Standing Desk critical", sub: "3 units left · Reorder required", time: "2 hr ago" },
   { icon: Plus, color: "text-accent", bg: "bg-accent/10", label: "New supplier approved", sub: "ElectroDepot added to network", time: "1 day ago" },
 ];
@@ -95,11 +95,38 @@ const cardVariants = {
   visible: (i: number) => ({ opacity: 1, y: 0, transition: { delay: i * 0.07, duration: 0.35 } }),
 };
 
+function HealthRing({ score }: { score: number }) {
+  const color = score >= 75 ? "hsl(var(--chart-1))" : score >= 50 ? "hsl(var(--chart-2))" : "hsl(var(--chart-3))";
+  const label = score >= 75 ? "Excellent" : score >= 50 ? "Fair" : "Needs Attention";
+  const data = [{ value: score, fill: color }, { value: 100 - score, fill: "hsl(var(--muted))" }];
+  return (
+    <div className="relative h-[180px] flex items-center justify-center">
+      <ResponsiveContainer width="100%" height="100%">
+        <RadialBarChart cx="50%" cy="50%" innerRadius="62%" outerRadius="85%" startAngle={210} endAngle={-30} data={data}>
+          <RadialBar dataKey="value" cornerRadius={6} background={false} />
+        </RadialBarChart>
+      </ResponsiveContainer>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <div className="text-3xl font-bold">{score}%</div>
+        <div className="text-xs text-muted-foreground mt-0.5">{label}</div>
+      </div>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const criticalItems = MOCK_PRODUCTS.filter(p => p.status === "critical").length;
   const lowItems = MOCK_PRODUCTS.filter(p => p.status === "low").length;
+  const healthyItems = MOCK_PRODUCTS.filter(p => p.status === "healthy").length;
   const pendingOrders = MOCK_ORDERS.filter(o => o.status === "pending" || o.status === "processing").length;
   const totalValue = MOCK_PRODUCTS.reduce((acc, p) => acc + p.quantity * p.unitCost, 0);
+  const healthScore = Math.round((healthyItems / MOCK_PRODUCTS.length) * 100);
+
+  // Top 5 products by total value
+  const topProducts = [...MOCK_PRODUCTS]
+    .map(p => ({ ...p, totalValue: p.quantity * p.unitCost }))
+    .sort((a, b) => b.totalValue - a.totalValue)
+    .slice(0, 5);
 
   const now = new Date();
   const greeting = now.getHours() < 12 ? "Good morning" : now.getHours() < 18 ? "Good afternoon" : "Good evening";
@@ -115,9 +142,7 @@ export default function Dashboard() {
         className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
       >
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-            {greeting}, Alex
-          </h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{greeting}, Alex</h1>
           <p className="text-muted-foreground mt-1 text-sm">{dateStr} — Here's what's happening in your warehouse.</p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -137,57 +162,45 @@ export default function Dashboard() {
         {[
           {
             title: "Total SKUs",
-            value: 1248,
-            prefix: "",
-            suffix: "",
+            value: MOCK_PRODUCTS.length,
+            prefix: "", suffix: "",
             sub: "+12% from last month",
             subColor: "text-teal-600 dark:text-teal-400",
-            icon: Package,
-            iconColor: "text-accent",
-            iconBg: "bg-accent/10",
+            icon: Package, iconColor: "text-accent", iconBg: "bg-accent/10",
             href: "/products",
           },
           {
             title: "Inventory Value",
             value: Math.round(totalValue / 1000),
-            prefix: "$",
-            suffix: "k",
+            prefix: "$", suffix: "k",
             sub: "+4.1% from last month",
             subColor: "text-teal-600 dark:text-teal-400",
-            icon: TrendingUp,
-            iconColor: "text-blue-500",
-            iconBg: "bg-blue-50 dark:bg-blue-950/40",
+            icon: TrendingUp, iconColor: "text-blue-500", iconBg: "bg-blue-50 dark:bg-blue-950/40",
             href: "/analytics",
           },
           {
             title: "Stock Alerts",
             value: criticalItems + lowItems,
-            prefix: "",
-            suffix: "",
+            prefix: "", suffix: "",
             sub: `${criticalItems} critical, ${lowItems} low`,
             subColor: "text-destructive",
-            icon: AlertCircle,
-            iconColor: "text-destructive",
-            iconBg: "bg-destructive/10",
+            icon: AlertCircle, iconColor: "text-destructive", iconBg: "bg-destructive/10",
             href: "/stock",
             alert: true,
           },
           {
             title: "Orders Pending",
             value: pendingOrders,
-            prefix: "",
-            suffix: "",
-            sub: "4 require action today",
+            prefix: "", suffix: "",
+            sub: "Requires action today",
             subColor: "text-amber-600 dark:text-amber-400",
-            icon: ShoppingCart,
-            iconColor: "text-amber-500",
-            iconBg: "bg-amber-50 dark:bg-amber-950/40",
+            icon: ShoppingCart, iconColor: "text-amber-500", iconBg: "bg-amber-50 dark:bg-amber-950/40",
             href: "/orders",
           },
         ].map((card, i) => (
           <motion.div key={card.title} custom={i} variants={cardVariants} initial="hidden" animate="visible">
             <Link href={card.href}>
-              <Card className={`cursor-pointer hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 group ${card.alert ? "border-destructive/30 bg-destructive/5" : ""}`}>
+              <Card className={`cursor-pointer hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 ${card.alert ? "border-destructive/30 bg-destructive/5" : ""}`}>
                 <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
                   <CardTitle className={`text-sm font-medium ${card.alert ? "text-destructive" : "text-muted-foreground"}`}>{card.title}</CardTitle>
                   <div className={`p-1.5 rounded-md ${card.iconBg}`}>
@@ -208,18 +221,13 @@ export default function Dashboard() {
 
       {/* Charts row */}
       <div className="grid gap-6 lg:grid-cols-7">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3, duration: 0.4 }}
-          className="lg:col-span-4"
-        >
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.4 }} className="lg:col-span-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-base">Inventory Value Trend</CardTitle>
               <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">This week</span>
             </CardHeader>
-            <CardContent className="h-[260px]">
+            <CardContent className="h-[240px]">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={TREND_DATA}>
                   <defs>
@@ -242,53 +250,74 @@ export default function Dashboard() {
           </Card>
         </motion.div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.35, duration: 0.4 }}
-          className="lg:col-span-3"
-        >
+        {/* Inventory Health Score */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35, duration: 0.4 }} className="lg:col-span-3">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Category Distribution</CardTitle>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Trophy className="h-4 w-4 text-amber-500" /> Inventory Health Score
+              </CardTitle>
             </CardHeader>
-            <CardContent className="h-[260px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={CATEGORY_DATA}
-                    cx="50%"
-                    cy="45%"
-                    innerRadius={55}
-                    outerRadius={80}
-                    paddingAngle={4}
-                    dataKey="value"
-                    strokeWidth={0}
-                  >
-                    {CATEGORY_DATA.map((_, i) => (
-                      <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <RechartsTooltip
-                    contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: 12 }}
-                    formatter={(v: number) => [`${v}%`, "Share"]}
-                  />
-                  <Legend verticalAlign="bottom" height={36} iconSize={8} iconType="circle" wrapperStyle={{ fontSize: 11 }} />
-                </PieChart>
-              </ResponsiveContainer>
+            <CardContent className="pb-2">
+              <HealthRing score={healthScore} />
+              <div className="grid grid-cols-3 gap-2 mt-1">
+                {[
+                  { label: "In Stock", count: healthyItems, color: "bg-chart-1" },
+                  { label: "Low", count: lowItems, color: "bg-chart-2" },
+                  { label: "Critical", count: criticalItems, color: "bg-chart-3" },
+                ].map(s => (
+                  <div key={s.label} className="text-center">
+                    <div className={`h-1.5 rounded-full ${s.color} mb-1`} />
+                    <div className="text-lg font-bold">{s.count}</div>
+                    <div className="text-[10px] text-muted-foreground">{s.label}</div>
+                  </div>
+                ))}
+              </div>
             </CardContent>
           </Card>
         </motion.div>
       </div>
 
-      {/* Bottom row: Activity + Attention */}
-      <div className="grid gap-6 lg:grid-cols-2">
+      {/* Top products + Activity + Attention */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Top products by value */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.38, duration: 0.4 }}>
+          <Card className="h-full">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-base">Top Products by Value</CardTitle>
+              <Link href="/products">
+                <Button variant="ghost" size="sm" className="text-xs gap-1">View all <ArrowRight className="h-3 w-3" /></Button>
+              </Link>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="divide-y divide-border/60">
+                {topProducts.map((p, i) => (
+                  <motion.div
+                    key={p.id}
+                    initial={{ opacity: 0, x: -8 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.42 + i * 0.06 }}
+                    className="flex items-center gap-3 px-4 py-3 hover:bg-muted/40 transition-colors"
+                  >
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 ${
+                      i === 0 ? "bg-amber-400 text-amber-900" : i === 1 ? "bg-muted-foreground/20 text-muted-foreground" : "bg-muted text-muted-foreground"
+                    }`}>
+                      {i + 1}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium truncate">{p.name}</div>
+                      <div className="text-xs text-muted-foreground">{p.quantity} units</div>
+                    </div>
+                    <div className="text-sm font-semibold shrink-0">${(p.totalValue / 1000).toFixed(1)}k</div>
+                  </motion.div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
         {/* Activity feed */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4, duration: 0.4 }}
-        >
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4, duration: 0.4 }}>
           <Card className="h-full">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-base">Recent Activity</CardTitle>
@@ -304,7 +333,7 @@ export default function Dashboard() {
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.45 + i * 0.06 }}
-                    className="flex items-start gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors cursor-default"
+                    className="flex items-start gap-3 p-2.5 rounded-lg hover:bg-muted/50 transition-colors cursor-default"
                   >
                     <div className={`p-1.5 rounded-md ${item.bg} shrink-0 mt-0.5`}>
                       <item.icon className={`h-3.5 w-3.5 ${item.color}`} />
@@ -323,38 +352,32 @@ export default function Dashboard() {
           </Card>
         </motion.div>
 
-        {/* Products needing attention */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.45, duration: 0.4 }}
-        >
+        {/* Needs attention */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45, duration: 0.4 }}>
           <Card className="h-full">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-base">Needs Attention</CardTitle>
               <Link href="/stock">
-                <Button variant="ghost" size="sm" className="text-xs gap-1">
-                  View all <ArrowRight className="h-3 w-3" />
-                </Button>
+                <Button variant="ghost" size="sm" className="text-xs gap-1">View all <ArrowRight className="h-3 w-3" /></Button>
               </Link>
             </CardHeader>
             <CardContent>
-              <div className="space-y-1">
+              <div className="space-y-2">
                 {MOCK_PRODUCTS.filter(p => p.status !== "healthy").map((product, i) => (
                   <motion.div
                     key={product.id}
                     initial={{ opacity: 0, x: 10 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.5 + i * 0.06 }}
-                    className="flex items-center justify-between p-3 rounded-lg border border-border/60 hover:bg-muted/40 transition-colors"
+                    className="flex items-center justify-between p-2.5 rounded-lg border border-border/60 hover:bg-muted/40 transition-colors"
                   >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-8 h-8 rounded-md bg-muted flex items-center justify-center shrink-0">
-                        <Package className="h-4 w-4 text-muted-foreground" />
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-7 h-7 rounded-md bg-muted flex items-center justify-center shrink-0">
+                        <Package className="h-3.5 w-3.5 text-muted-foreground" />
                       </div>
                       <div className="min-w-0">
-                        <div className="font-medium text-sm truncate">{product.name}</div>
-                        <div className="text-xs text-muted-foreground">{product.quantity} / {product.reorderPoint} units</div>
+                        <div className="font-medium text-xs truncate">{product.name}</div>
+                        <div className="text-[10px] text-muted-foreground">{product.quantity} / {product.reorderPoint} units</div>
                       </div>
                     </div>
                     <div className="shrink-0">
