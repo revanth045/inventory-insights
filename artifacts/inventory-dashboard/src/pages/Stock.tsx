@@ -1,85 +1,147 @@
-import { 
-  Card, 
-  CardContent, 
-  CardHeader, 
-  CardTitle 
+import { useState } from "react";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle
 } from "@/components/ui/card";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
 } from "@/components/ui/table";
-import { Progress } from "@/components/ui/progress";
 import { MOCK_PRODUCTS } from "@/data/mockData";
-import { AlertTriangle, TrendingDown, RefreshCw } from "lucide-react";
+import { AlertTriangle, TrendingDown, RefreshCw, CheckCircle2, XCircle, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { motion } from "framer-motion";
+import { useToast } from "@/hooks/use-toast";
+
+function StatusBadge({ status }: { status: string }) {
+  if (status === "healthy") return <Badge className="bg-teal-500 text-white gap-1 text-[11px]"><CheckCircle2 className="h-2.5 w-2.5" /> In Stock</Badge>;
+  if (status === "low") return <Badge className="bg-amber-500 text-white gap-1 text-[11px]"><AlertTriangle className="h-2.5 w-2.5" /> Low</Badge>;
+  if (status === "critical") return <Badge variant="destructive" className="gap-1 text-[11px]"><XCircle className="h-2.5 w-2.5" /> Critical</Badge>;
+  return null;
+}
 
 export default function Stock() {
+  const { toast } = useToast();
+  const [syncing, setSyncing] = useState(false);
   const needsReorder = MOCK_PRODUCTS.filter(p => p.quantity <= p.reorderPoint);
+  const healthy = MOCK_PRODUCTS.filter(p => p.status === "healthy").length;
+  const low = MOCK_PRODUCTS.filter(p => p.status === "low").length;
+  const critical = MOCK_PRODUCTS.filter(p => p.status === "critical").length;
+
+  const handleSync = () => {
+    setSyncing(true);
+    setTimeout(() => {
+      setSyncing(false);
+      toast({ title: "ERP sync complete", description: "Stock levels updated successfully." });
+    }, 1800);
+  };
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Stock Levels</h1>
-          <p className="text-muted-foreground mt-1">Monitor capacity and restock alerts</p>
+          <p className="text-muted-foreground mt-1 text-sm">Monitor capacity and restock alerts</p>
         </div>
-        <Button variant="outline" className="shrink-0 gap-2">
-          <RefreshCw className="h-4 w-4" /> Sync ERP
+        <Button variant="outline" size="sm" className="gap-1.5 shrink-0" onClick={handleSync} disabled={syncing} data-testid="button-sync">
+          <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
+          {syncing ? "Syncing..." : "Sync ERP"}
         </Button>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-3">
-        <div className="md:col-span-2 space-y-6">
+      {/* Summary cards */}
+      <div className="grid grid-cols-3 gap-4">
+        {[
+          { label: "In Stock", count: healthy, icon: CheckCircle2, color: "text-teal-500", bg: "bg-teal-50 dark:bg-teal-950/40", border: "border-teal-200 dark:border-teal-900" },
+          { label: "Low Stock", count: low, icon: AlertTriangle, color: "text-amber-500", bg: "bg-amber-50 dark:bg-amber-950/40", border: "border-amber-200 dark:border-amber-900" },
+          { label: "Critical", count: critical, icon: XCircle, color: "text-destructive", bg: "bg-destructive/5", border: "border-destructive/20" },
+        ].map((s, i) => (
+          <motion.div key={s.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}>
+            <Card className={`border ${s.border}`}>
+              <CardContent className="p-4 flex items-center gap-4">
+                <div className={`p-2.5 rounded-xl ${s.bg}`}>
+                  <s.icon className={`h-5 w-5 ${s.color}`} />
+                </div>
+                <div>
+                  <div className="text-2xl font-bold">{s.count}</div>
+                  <div className="text-xs text-muted-foreground">{s.label}</div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Capacity overview */}
+        <div className="lg:col-span-2">
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle>Capacity Overview</CardTitle>
+              <CardTitle className="text-base">Capacity Overview</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-0">
               <Table>
                 <TableHeader>
-                  <TableRow>
+                  <TableRow className="hover:bg-transparent">
                     <TableHead>Product</TableHead>
-                    <TableHead className="w-[40%]">Capacity Status</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="w-[200px]">Stock Level</TableHead>
                     <TableHead className="text-right">Qty</TableHead>
+                    <TableHead className="text-right">Capacity</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {MOCK_PRODUCTS.map((product) => {
-                    const capacityMax = Math.max(product.quantity, product.reorderPoint * 3);
-                    const percentage = Math.min(100, Math.max(0, (product.quantity / capacityMax) * 100));
-                    
-                    let progressColor = "bg-teal-500";
-                    if (product.status === 'low') progressColor = "bg-amber-500";
-                    if (product.status === 'critical') progressColor = "bg-destructive";
+                  {MOCK_PRODUCTS.map((product, i) => {
+                    const max = Math.max(product.quantity, product.reorderPoint * 3, 1);
+                    const pct = Math.min(100, Math.max(0, (product.quantity / max) * 100));
+                    const barColor =
+                      product.status === "critical" ? "bg-destructive" :
+                      product.status === "low" ? "bg-amber-500" :
+                      "bg-teal-500";
 
                     return (
-                      <TableRow key={product.id}>
+                      <motion.tr
+                        key={product.id}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.1 + i * 0.05 }}
+                        className="border-b border-border/60 last:border-0 hover:bg-muted/40 transition-colors"
+                      >
                         <TableCell>
-                          <div className="font-medium">{product.name}</div>
-                          <div className="text-xs text-muted-foreground">{product.sku}</div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-col gap-2">
-                            <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-                              <div 
-                                className={`h-full ${progressColor} transition-all duration-500`} 
-                                style={{ width: `${percentage}%` }}
-                              />
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-8 h-8 rounded-md bg-muted flex items-center justify-center shrink-0">
+                              <Package className="h-4 w-4 text-muted-foreground" />
                             </div>
-                            <div className="flex justify-between text-[10px] text-muted-foreground">
-                              <span>0</span>
-                              <span>Target: {capacityMax}</span>
+                            <div>
+                              <div className="font-medium text-sm">{product.name}</div>
+                              <div className="text-xs text-muted-foreground font-mono">{product.sku}</div>
                             </div>
                           </div>
                         </TableCell>
-                        <TableCell className="text-right font-medium">
-                          {product.quantity}
+                        <TableCell><StatusBadge status={product.status} /></TableCell>
+                        <TableCell>
+                          <div className="space-y-1.5">
+                            <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                              <motion.div
+                                initial={{ width: 0 }}
+                                animate={{ width: `${pct}%` }}
+                                transition={{ duration: 0.7, delay: 0.15 + i * 0.05, ease: "easeOut" }}
+                                className={`h-full ${barColor} rounded-full`}
+                              />
+                            </div>
+                            <div className="text-[10px] text-muted-foreground">{Math.round(pct)}% of capacity</div>
+                          </div>
                         </TableCell>
-                      </TableRow>
+                        <TableCell className="text-right font-semibold text-sm">{product.quantity}</TableCell>
+                        <TableCell className="text-right text-muted-foreground text-sm">{max}</TableCell>
+                      </motion.tr>
                     );
                   })}
                 </TableBody>
@@ -88,34 +150,50 @@ export default function Stock() {
           </Card>
         </div>
 
-        <div className="space-y-6">
-          <Card className="border-destructive/30 shadow-sm">
-            <CardHeader className="bg-destructive/5 border-b border-border">
-              <CardTitle className="text-destructive flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5" />
+        {/* Restock alerts */}
+        <div>
+          <Card className="border-destructive/30">
+            <CardHeader className="bg-destructive/5 border-b border-border rounded-t-xl">
+              <CardTitle className="text-destructive flex items-center gap-2 text-sm">
+                <AlertTriangle className="h-4 w-4" />
                 Action Required
+                <span className="ml-auto bg-destructive text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{needsReorder.length}</span>
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               <div className="divide-y divide-border">
-                {needsReorder.map(product => (
-                  <div key={product.id} className="p-4 hover:bg-muted/50 transition-colors">
-                    <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <div className="font-semibold text-sm">{product.name}</div>
-                        <div className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                          <TrendingDown className="h-3 w-3 text-destructive" />
-                          Below reorder point ({product.reorderPoint})
-                        </div>
+                {needsReorder.map((product, i) => (
+                  <motion.div
+                    key={product.id}
+                    initial={{ opacity: 0, x: 12 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.2 + i * 0.08 }}
+                    className="p-4 hover:bg-muted/40 transition-colors"
+                  >
+                    <div className="flex justify-between items-start mb-1.5">
+                      <div className="font-semibold text-sm leading-tight">{product.name}</div>
+                      <div className={`font-bold text-sm ${product.status === "critical" ? "text-destructive" : "text-amber-500"}`}>
+                        {product.quantity} left
                       </div>
-                      <div className="font-bold text-destructive">{product.quantity} left</div>
                     </div>
-                    <Button size="sm" className="w-full mt-3">Draft PO</Button>
-                  </div>
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground mb-3">
+                      <TrendingDown className="h-3 w-3 text-destructive" />
+                      Reorder point: {product.reorderPoint} units
+                    </div>
+                    <Button
+                      size="sm"
+                      className="w-full h-7 text-xs"
+                      onClick={() => toast({ title: "PO drafted", description: `Purchase order created for ${product.name}` })}
+                      data-testid={`button-draft-po-${product.id}`}
+                    >
+                      Draft Purchase Order
+                    </Button>
+                  </motion.div>
                 ))}
                 {needsReorder.length === 0 && (
-                  <div className="p-6 text-center text-muted-foreground">
-                    All stock levels are healthy.
+                  <div className="p-8 text-center text-muted-foreground">
+                    <CheckCircle2 className="h-8 w-8 mx-auto mb-2 text-teal-500 opacity-60" />
+                    <div className="text-sm">All stock levels are healthy</div>
                   </div>
                 )}
               </div>
