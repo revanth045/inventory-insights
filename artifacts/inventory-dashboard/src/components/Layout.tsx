@@ -73,12 +73,11 @@ const PAGE_LABELS: Record<string, string> = {
 const SHORTCUTS = [
   { keys: ["⌘", "K"], action: "Open command palette" },
   { keys: ["?"], action: "Show keyboard shortcuts" },
-  { keys: ["⌘", "D"], action: "Go to Dashboard" },
-  { keys: ["⌘", "P"], action: "Go to Products" },
+  { keys: ["⌘", "B"], action: "Toggle sidebar collapse" },
+  { keys: ["⌘", "T"], action: "Toggle dark mode" },
   { keys: ["Esc"], action: "Close any dialog" },
   { keys: ["↑", "↓"], action: "Navigate lists" },
   { keys: ["↵"], action: "Select item" },
-  { keys: ["⌘", "T"], action: "Toggle dark mode" },
 ];
 
 function SidebarContent({
@@ -233,16 +232,17 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   // Global keyboard shortcuts
   const handleKey = useCallback((e: KeyboardEvent) => {
     const meta = e.metaKey || e.ctrlKey;
+    const isInput = ["INPUT", "TEXTAREA"].includes((e.target as HTMLElement).tagName);
     if (meta && e.key === "k") { e.preventDefault(); setCmdOpen(true); }
     if (meta && e.key === "t") { e.preventDefault(); setTheme(theme === "dark" ? "light" : "dark"); }
-    if (e.key === "?" && !["INPUT", "TEXTAREA"].includes((e.target as HTMLElement).tagName)) {
-      setShortcutsOpen(true);
-    }
-    if (e.key === "Escape") {
-      setCmdOpen(false);
-      setMobileOpen(false);
-    }
+    if (meta && e.key === "b" && !isInput) { e.preventDefault(); setSidebarCollapsed(v => !v); }
+    if (e.key === "?" && !isInput) { setShortcutsOpen(true); }
+    if (e.key === "Escape") { setCmdOpen(false); setMobileOpen(false); }
   }, [theme, setTheme]);
+
+  const navigate = (path: string) => {
+    window.location.href = path;
+  };
 
   useEffect(() => {
     window.addEventListener("keydown", handleKey);

@@ -16,8 +16,17 @@ import {
   Plus,
   RefreshCw,
   BarChart3,
-  Trophy
+  Trophy,
+  Download,
+  Filter
 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   AreaChart,
   Area,
@@ -115,6 +124,9 @@ function HealthRing({ score }: { score: number }) {
 }
 
 export default function Dashboard() {
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+
   const criticalItems = MOCK_PRODUCTS.filter(p => p.status === "critical").length;
   const lowItems = MOCK_PRODUCTS.filter(p => p.status === "low").length;
   const healthyItems = MOCK_PRODUCTS.filter(p => p.status === "healthy").length;
@@ -122,11 +134,45 @@ export default function Dashboard() {
   const totalValue = MOCK_PRODUCTS.reduce((acc, p) => acc + p.quantity * p.unitCost, 0);
   const healthScore = Math.round((healthyItems / MOCK_PRODUCTS.length) * 100);
 
+  const filteredProducts = MOCK_PRODUCTS.filter(p => {
+    const matchCategory = categoryFilter === "all" || p.category === categoryFilter;
+    const matchStatus = statusFilter === "all" || p.status === statusFilter;
+    return matchCategory && matchStatus;
+  });
+
+  const filteredValue = filteredProducts.reduce((acc, p) => acc + p.quantity * p.unitCost, 0);
+  const filteredHealthy = filteredProducts.filter(p => p.status === "healthy").length;
+  const filteredHealth = filteredProducts.length ? Math.round((filteredHealthy / filteredProducts.length) * 100) : 0;
+
   // Top 5 products by total value
-  const topProducts = [...MOCK_PRODUCTS]
+  const topProducts = [...filteredProducts]
     .map(p => ({ ...p, totalValue: p.quantity * p.unitCost }))
     .sort((a, b) => b.totalValue - a.totalValue)
     .slice(0, 5);
+
+  const exportDashboardData = () => {
+    const data = {
+      timestamp: new Date().toISOString(),
+      filter: { category: categoryFilter, status: statusFilter },
+      summary: {
+        totalSkus: filteredProducts.length,
+        inventoryValue: filteredValue,
+        healthScore: filteredHealth,
+        criticalItems: filteredProducts.filter(p => p.status === "critical").length,
+        lowItems: filteredProducts.filter(p => p.status === "low").length,
+      }
+    };
+    const csv = "Dashboard Export\n" + new Date().toLocaleString() + "\n\n" +
+      `Category Filter: ${categoryFilter}\nStatus Filter: ${statusFilter}\n\n` +
+      `Total SKUs: ${data.summary.totalSkus}\nInventory Value: $${filteredValue.toLocaleString()}\nHealth Score: ${filteredHealth}%\n` +
+      `Critical Items: ${data.summary.criticalItems}\nLow Items: ${data.summary.lowItems}\n\nTop 5 Products\n` +
+      topProducts.map(p => `${p.name},${p.quantity},$${p.totalValue.toFixed(2)}`).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `dashboard-export-${new Date().toISOString().split('T')[0]}.csv`; a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const now = new Date();
   const greeting = now.getHours() < 12 ? "Good morning" : now.getHours() < 18 ? "Good afternoon" : "Good evening";
@@ -134,26 +180,59 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Welcome banner */}
+      {/* Welcome banner + filters */}
       <motion.div
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
-        className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+        className="flex flex-col gap-4"
       >
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{greeting}, Alex</h1>
-          <p className="text-muted-foreground mt-1 text-sm">{dateStr} — Here's what's happening in your warehouse.</p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{greeting}, Alex</h1>
+            <p className="text-muted-foreground mt-1 text-sm">{dateStr} — Here's what's happening in your warehouse.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {QUICK_ACTIONS.map(action => (
+              <Link key={action.label} href={action.href}>
+                <Button variant={action.variant} size="sm" className="gap-1.5 text-xs" data-testid={`button-quick-${action.label.toLowerCase().replace(/\s+/g, "-")}`}>
+                  <action.icon className="h-3.5 w-3.5" />
+                  {action.label}
+                </Button>
+              </Link>
+            ))}
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {QUICK_ACTIONS.map(action => (
-            <Link key={action.label} href={action.href}>
-              <Button variant={action.variant} size="sm" className="gap-1.5 text-xs" data-testid={`button-quick-${action.label.toLowerCase().replace(/\s+/g, "-")}`}>
-                <action.icon className="h-3.5 w-3.5" />
-                {action.label}
-              </Button>
-            </Link>
-          ))}
+
+        {/* Filters + Export */}
+        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+          <div className="flex gap-2 flex-wrap">
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <SelectTrigger className="w-[180px] h-9" data-testid="select-dashboard-category">
+                <Filter className="h-4 w-4 mr-2" /><SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                <SelectItem value="Electronics">Electronics</SelectItem>
+                <SelectItem value="Furniture">Furniture</SelectItem>
+                <SelectItem value="Accessories">Accessories</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[150px] h-9" data-testid="select-dashboard-status">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="healthy">Healthy</SelectItem>
+                <SelectItem value="low">Low</SelectItem>
+                <SelectItem value="critical">Critical</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Button variant="outline" size="sm" className="gap-1.5 h-9 text-xs" onClick={exportDashboardData} data-testid="button-export-dashboard">
+            <Download className="h-3.5 w-3.5" /> Export View
+          </Button>
         </div>
       </motion.div>
 
@@ -162,31 +241,31 @@ export default function Dashboard() {
         {[
           {
             title: "Total SKUs",
-            value: MOCK_PRODUCTS.length,
+            value: filteredProducts.length,
             prefix: "", suffix: "",
-            sub: "+12% from last month",
+            sub: `${categoryFilter !== "all" ? "Filtered: " : ""}${filteredProducts.length} visible`,
             subColor: "text-teal-600 dark:text-teal-400",
             icon: Package, iconColor: "text-accent", iconBg: "bg-accent/10",
             href: "/products",
           },
           {
             title: "Inventory Value",
-            value: Math.round(totalValue / 1000),
+            value: Math.round(filteredValue / 1000),
             prefix: "$", suffix: "k",
-            sub: "+4.1% from last month",
+            sub: `${statusFilter !== "all" ? "Filtered" : "Total"} value in view`,
             subColor: "text-teal-600 dark:text-teal-400",
             icon: TrendingUp, iconColor: "text-blue-500", iconBg: "bg-blue-50 dark:bg-blue-950/40",
             href: "/analytics",
           },
           {
             title: "Stock Alerts",
-            value: criticalItems + lowItems,
+            value: filteredProducts.filter(p => p.status !== "healthy").length,
             prefix: "", suffix: "",
-            sub: `${criticalItems} critical, ${lowItems} low`,
+            sub: `${filteredProducts.filter(p => p.status === "critical").length} critical in view`,
             subColor: "text-destructive",
             icon: AlertCircle, iconColor: "text-destructive", iconBg: "bg-destructive/10",
             href: "/stock",
-            alert: true,
+            alert: filteredProducts.filter(p => p.status !== "healthy").length > 0,
           },
           {
             title: "Orders Pending",
@@ -256,15 +335,18 @@ export default function Dashboard() {
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
                 <Trophy className="h-4 w-4 text-amber-500" /> Inventory Health Score
+                {(categoryFilter !== "all" || statusFilter !== "all") && (
+                  <Badge variant="secondary" className="ml-auto text-[10px]">Filtered</Badge>
+                )}
               </CardTitle>
             </CardHeader>
             <CardContent className="pb-2">
-              <HealthRing score={healthScore} />
+              <HealthRing score={filteredHealth} />
               <div className="grid grid-cols-3 gap-2 mt-1">
                 {[
-                  { label: "In Stock", count: healthyItems, color: "bg-chart-1" },
-                  { label: "Low", count: lowItems, color: "bg-chart-2" },
-                  { label: "Critical", count: criticalItems, color: "bg-chart-3" },
+                  { label: "In Stock", count: filteredProducts.filter(p => p.status === "healthy").length, color: "bg-chart-1" },
+                  { label: "Low", count: filteredProducts.filter(p => p.status === "low").length, color: "bg-chart-2" },
+                  { label: "Critical", count: filteredProducts.filter(p => p.status === "critical").length, color: "bg-chart-3" },
                 ].map(s => (
                   <div key={s.label} className="text-center">
                     <div className={`h-1.5 rounded-full ${s.color} mb-1`} />
